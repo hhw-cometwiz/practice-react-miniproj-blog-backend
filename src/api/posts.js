@@ -3,11 +3,13 @@ const api = require("./posts.ctrl");
 
 const router = new KoaRouter();
 
-router.get("/posts", api.list);
-router.post("/posts", api.write);
+//RESTful API functions are treated as koa-router middlewares.
 
+router.get("/posts", api.list);
 router.get("/posts/:postId", api.testIfObjectIdIsValid, api.read);
-router.delete("/posts/:postId", api.testIfObjectIdIsValid, api.remove);
-router.patch("/posts/:postId", api.testIfObjectIdIsValid, api.update);
+
+router.post("/posts", api.testIsSignedIn, api.write);
+router.patch("/posts/:postId", api.testIsSignedIn, api.testIfObjectIdIsValid, api.update);
+router.delete("/posts/:postId", api.testIsSignedIn, api.testIfObjectIdIsValid, api.remove);
 
 module.exports = router;

@@ -5,9 +5,12 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^8.0.0",
+    "http-proxy-middleware": "^0.19.1",
     "koa": "^2.7.0",
     "koa-bodyparser": "^4.2.1",
+    "koa-proxy": "^1.0.0-alpha.2",
     "koa-router": "^7.4.0",
+    "koa-session": "^5.12.2",
     "mongoose": "^5.6.4"
   },
   "devDependencies": {

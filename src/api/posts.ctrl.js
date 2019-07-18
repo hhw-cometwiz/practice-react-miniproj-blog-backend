@@ -4,6 +4,7 @@ const Post = require("../models/Post");
 class Api {
     constructor() {
         this.testIfObjectIdIsValid = this.testIfObjectIdIsValid.bind(this);
+        this.testIsSignedIn = this.testIsSignedIn.bind(this);
         this.list = this.list.bind(this);
         this.read = this.read.bind(this);
         this.write = this.write.bind(this);
@@ -23,11 +24,24 @@ class Api {
         }
     }
 
+    testIsSignedIn(ctx, next) {
+        let result = null;
+
+        if(!ctx.session.isSignedIn) {
+            ctx.status = 401;
+        }
+        else {
+            result = next();
+        }
+
+        return result;
+    }
+
     /**
      * GET /api/posts
      */
     list(ctx) {
-        let {page, count, length} = ctx.query;
+        let {page, pageCount, contentLength, tags} = ctx.query;
 
         if("undefined" === typeof page) {
             page = 1;
@@ -40,48 +54,58 @@ class Api {
             return;
         }
 
-        if("undefined" === typeof count) {
-            count = 10;
+        if("undefined" === typeof pageCount) {
+            pageCount = 10;
         }
         else {
-            count = Number.parseInt(count);
+            pageCount = Number.parseInt(pageCount);
         }
-        if(count < 1) {
+        if(pageCount < 1) {
             ctx.status = 400;
             return;
         }
 
-        if("undefined" === typeof length) {
-            length = 50;
+        if("undefined" === typeof contentLength) {
+            contentLength = 50;
         }
         else {
-            length = Number.parseInt(length);
+            contentLength = Number.parseInt(contentLength);
         }
         if(page < 1) {
             ctx.status = 400;
             return;
         }
+
+        let condition = {};
+        if("string" === typeof tags) {
+            const tagArray = Array.from(new Set(tags.split(",").map((tag) => tag.trim()).filter((tag) => tag.length > 0)));
+            if(tagArray.length > 0) {
+                condition.tags = {
+                    $in : tagArray
+                };
+            }
+        }
         
         const responseBody = {};
-
-        return Post.find()
+        
+        return Post.find(condition)
             .sort({_id : -1})
-            .limit(count)
-            .skip((page - 1) * count)
-            .lean() //Select all records as JSON texts.
+            .limit(pageCount)
+            .skip((page - 1) * pageCount)
+            .lean() //Retrieve all records as JSON texts.
             .exec()
             .then((posts) => {
                 responseBody.posts = posts.map((item) => {
                     return ({
                         ...item,
-                        content : (item.content.length > length ? `${item.content.slice(0, length)}...` : item.content)
+                        content : (item.content.length > contentLength ? `${item.content.slice(0, contentLength)}...` : item.content)
                     });
                 });
-                return Post.count().exec();
+                return Post.countDocuments(condition).exec();
             })
-            .then((totalCount) => {
-                responseBody.totalCount = totalCount;
-                responseBody.lastPage = (count > 0 ? Math.ceil(totalCount / count) : 0);
+            .then((totalPostCount) => {
+                responseBody.totalPostCount = totalPostCount;
+                responseBody.lastPage = (pageCount > 0 ? Math.ceil(totalPostCount / pageCount) : 0);
                 ctx.body = responseBody;
             })
             .catch((e) => {
@@ -95,7 +119,7 @@ class Api {
      */
     read(ctx) {
         const {postId} = ctx.params;
-
+        
         return Post.findById(postId)
             .exec()
             .then((post) => {
@@ -132,7 +156,6 @@ class Api {
         // }
         return post.save()
             .then(() => {
-                console.log("save.then", ctx);
                 ctx.body = post;
             })
             .catch((e) => {
@@ -165,7 +188,7 @@ class Api {
     update(ctx) {
         const postId = ctx.params.postId;
         const {title, content, tags} = ctx.request.body;
-
+        
         return Post.findByIdAndUpdate(
             postId,
             {
