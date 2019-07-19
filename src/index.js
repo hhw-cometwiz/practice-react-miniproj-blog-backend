@@ -1,8 +1,12 @@
+const path = require("path");
 const Dotenv = require("dotenv");
 const Koa = require("koa");
+const KoaRouter = require("koa-router");
 const KoaBodyParser = require("koa-bodyparser");
 const KoaSession = require("koa-session");
+const serve = require("koa-static");
 const mongoose = require("mongoose");
+const ssr = require("./ssr");
 
 Dotenv.config();
 const envVar = process.env;
@@ -17,14 +21,18 @@ mongoose.connect(envVar.MONGO_URI)
     })
 ;
 
+const frontendBuildPath = path.join(__dirname, "../../frontend/build");
 
 const app = new Koa();
 
-const index = require("./api/index");
+//const index = require("./api/index");
 const posts = require("./api/posts");
 const about = require("./api/about");
 const test = require("./api/test");
 const auth = require("./api/auth");
+
+const router = new KoaRouter();
+router.get("/", ssr);
 
 app
     .use(
@@ -39,11 +47,17 @@ app
         KoaBodyParser()
     )
     .use(
-        index.routes()
+        router.routes()
     )
     .use(
-        index.allowedMethods()
+        router.allowedMethods()
     )
+    // .use(
+    //     index.routes()
+    // )
+    // .use(
+    //     index.allowedMethods()
+    // )
     .use(
         posts.routes()
     )
@@ -68,6 +82,8 @@ app
     .use(
         auth.allowedMethods()
     )
+    .use(serve(frontendBuildPath))
+    .use(ssr)
 ;
 app.keys = [envVar.COOKIE_SIGN_KEY];
 

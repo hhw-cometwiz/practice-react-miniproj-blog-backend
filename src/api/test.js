@@ -3,7 +3,7 @@ const KoaRouter = require("koa-router");
 const router = new KoaRouter();
 
 router.get(
-    "/test",
+    "/api/test",
     (ctx) => {
         ctx.body = "test succeeded.";
     }
